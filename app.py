@@ -9,59 +9,52 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. 스타일 꾸미기 (초슬림 버전)
+# 2. 스타일 꾸미기 (초슬림 & 심플)
 st.markdown("""
 <style>
-    /* 1. 전체 여백 줄이기 */
+    /* 1. 전체 여백 최소화 */
     .block-container {
         padding-top: 2rem !important;
-        padding-bottom: 2rem !important;
+        padding-bottom: 3rem !important;
     }
     
-    /* 2. 링크 버튼 슬림하게 만들기 */
+    /* 2. 링크 버튼 디자인 (작고 심플하게) */
     div.stButton > button {
         width: 100%;
-        padding: 2px 10px !important; /* 버튼 내부 여백 축소 */
-        font-size: 14px !important;
-        height: auto !important;
+        padding: 0px 10px !important;
+        font-size: 13px !important;
+        height: 32px !important;
         min-height: 0px !important;
         border: 1px solid #4CAF50;
         color: #4CAF50;
         background-color: white;
+        border-radius: 5px;
     }
     div.stButton > button:hover {
         background-color: #4CAF50;
         color: white;
-        border-color: #4CAF50;
     }
     
-    /* 3. 그룹 헤더 스타일 */
-    .group-header {
-        font-size: 20px;
-        font-weight: 700;
-        color: #1E3A8A;
-        border-bottom: 2px solid #1E3A8A;
-        padding-bottom: 5px;
-        margin-top: 20px;
-        margin-bottom: 10px;
-    }
-
-    /* 4. 텍스트 스타일 (한 줄 보기용) */
+    /* 3. 텍스트 스타일 (한 줄 보기용) */
     .compact-text {
         font-size: 16px;
         line-height: 2.0; /* 버튼 높이와 눈높이 맞춤 */
         color: #333;
+        white-space: nowrap; /* 줄바꿈 방지 (한 줄로 길게) */
+        overflow: hidden;
+        text-overflow: ellipsis; /* 내용이 너무 길면 ... 처리 */
     }
     .description-text {
         font-size: 14px;
-        color: #666;
+        color: #888;
+        font-weight: 400;
     }
     
-    /* 5. 구분선(Divider) 간격 최소화 */
+    /* 4. 구분선 스타일 (아주 얇게) */
     hr {
-        margin-top: 5px !important;
-        margin-bottom: 5px !important;
-        border-top: 1px solid #eee;
+        margin-top: 3px !important;
+        margin-bottom: 3px !important;
+        border-top: 1px solid #f0f0f0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -74,14 +67,15 @@ def load_data():
     if not os.path.exists(file_name):
         return None
 
+    # header=4: 엑셀 5번째 줄이 제목
     df = pd.read_excel(file_name, header=4)
+    # 엑셀 병합 처리 및 정리
     df['구분'] = df['구분'].ffill()
     df = df.dropna(subset=['링크', '내용'])
     return df
 
 # 4. 메인 화면 구성
 def main():
-    # [수정 1] 타이틀 변경
     st.title("🔥 마케팅팀 _ Smart Marketing Hub")
     
     df = load_data()
@@ -91,41 +85,34 @@ def main():
         return
 
     try:
-        groups = df['구분'].unique()
-
-        for group in groups:
-            if pd.isna(group): continue
-
-            # 그룹 제목
-            st.markdown(f"<div class='group-header'>📂 {group}</div>", unsafe_allow_html=True)
+        # [수정] 그룹(구분) 헤더 출력 부분 삭제!
+        # 단순히 엑셀에 있는 순서대로 한 줄씩 쭉 출력합니다.
+        for idx, row in df.iterrows():
             
-            group_df = df[df['구분'] == group]
-
-            for idx, row in group_df.iterrows():
-                # [수정 2] 레이아웃 비율 조정 (설명 칸을 넓게, 버튼은 좁게)
-                # 6.5 (내용) : 1.5 (별점) : 2 (버튼)
-                c1, c2, c3 = st.columns([6.5, 1.5, 2])
+            # 레이아웃 비율: [내용(7) | 별점(1) | 버튼(2)]
+            c1, c2, c3 = st.columns([7, 1, 2])
+            
+            with c1:
+                # 제목 : 설명 (형님이 원하신 스타일)
+                title = row['내용']
+                # 설명이 있으면 ' : 설명' 붙이고, 없으면 빈칸
+                desc = f" : <span class='description-text'>{row['기능']}</span>" if pd.notna(row['기능']) else ""
                 
-                with c1:
-                    # [수정 3] 제목 : 설명 형태의 한 줄 텍스트 생성
-                    title = row['내용']
-                    desc = f" : <span class='description-text'>{row['기능']}</span>" if pd.notna(row['기능']) else ""
-                    
-                    # HTML로 한 줄에 출력
-                    st.markdown(f"<div class='compact-text'><b>{title}</b>{desc}</div>", unsafe_allow_html=True)
-                
-                with c2:
-                    # 별점 (수직 정렬을 위해 줄바꿈 없이 출력)
-                    if pd.notna(row['활용도']):
-                        st.markdown(f"<div class='compact-text' style='text-align:center;'>{row['활용도']}</div>", unsafe_allow_html=True)
-                
-                with c3:
-                    # 링크 버튼
-                    if pd.notna(row['링크']):
-                        st.link_button("Link 🔗", str(row['링크']), use_container_width=True)
-                
-                # [수정 4] 굵은 divider 대신 아주 얇은 구분선 사용
-                st.markdown("<hr>", unsafe_allow_html=True)
+                # HTML로 출력
+                st.markdown(f"<div class='compact-text'><b>{title}</b>{desc}</div>", unsafe_allow_html=True)
+            
+            with c2:
+                # 별점
+                if pd.notna(row['활용도']):
+                    st.markdown(f"<div class='compact-text' style='text-align:center; font-size:14px;'>{row['활용도']}</div>", unsafe_allow_html=True)
+            
+            with c3:
+                # 링크 버튼
+                if pd.notna(row['링크']):
+                    st.link_button("Link 🔗", str(row['링크']), use_container_width=True)
+            
+            # 항목 사이 얇은 구분선
+            st.markdown("<hr>", unsafe_allow_html=True)
 
     except Exception as e:
         st.error("오류가 발생했습니다.")
