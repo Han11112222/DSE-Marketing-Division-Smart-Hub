@@ -1,129 +1,192 @@
-import streamlit as st
-import pandas as pd
-import os
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>마케팅팀 Smart Marketing Hub</title>
+    <style>
+        body {
+            font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+            color: #333;
+            margin: 0;
+            padding: 40px;
+            background-color: #ffffff;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
 
-# 1. 페이지 설정
-st.set_page_config(
-    page_title="마케팅팀 _ Smart Marketing Hub",
-    page_icon="🔥",
-    layout="wide"
-)
+        /* 메인 타이틀 */
+        h1 {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 40px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-# 2. 스타일 꾸미기 (초슬림 & 심플)
-st.markdown("""
-<style>
-    /* 1. 전체 여백 설정 */
-    .block-container {
-        padding-top: 2rem !important;
-        padding-bottom: 3rem !important;
-    }
-    
-    /* 2. 링크 버튼 디자인 */
-    div.stButton > button {
-        width: 100%;
-        padding: 0px 10px !important;
-        font-size: 13px !important;
-        height: 32px !important;
-        min-height: 0px !important;
-        border: 1px solid #4CAF50;
-        color: #4CAF50;
-        background-color: white;
-        border-radius: 5px;
-    }
-    div.stButton > button:hover {
-        background-color: #4CAF50;
-        color: white;
-    }
-    
-    /* 3. 텍스트 스타일 (한 줄 보기용) */
-    .compact-text {
-        font-size: 16px;
-        line-height: 2.0;
-        color: #333;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .description-text {
-        font-size: 14px;
-        color: #888;
-        font-weight: 400;
-    }
-    
-    /* 4. 항목 사이 구분선 (아주 얇게) */
-    hr.item-divider {
-        margin-top: 3px !important;
-        margin-bottom: 3px !important;
-        border-top: 1px solid #f0f0f0;
-    }
-</style>
-""", unsafe_allow_html=True)
+        /* 섹션 헤더 (Key Support, 모니터링 등) */
+        .section-header {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e40af; /* 파란색 텍스트 */
+            margin-top: 40px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* 상단 구분선 */
+        .divider-top {
+            border-top: 2px solid #1e40af;
+            margin-bottom: 0;
+        }
 
-# 3. 데이터 로드 함수
-@st.cache_data
-def load_data():
-    file_name = "marketing_hub.xlsx"
-    
-    if not os.path.exists(file_name):
-        return None
+        /* 리스트 아이템 행 */
+        .list-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 10px;
+            border-bottom: 1px solid #e5e7eb; /* 연한 회색 줄 */
+        }
 
-    df = pd.read_excel(file_name, header=4)
-    df['구분'] = df['구분'].ffill()
-    df = df.dropna(subset=['링크', '내용'])
-    return df
+        /* 텍스트 영역 */
+        .content-area {
+            flex: 2;
+            font-size: 14px;
+        }
+        .content-title {
+            font-weight: 700;
+            margin-right: 5px;
+        }
+        .content-desc {
+            color: #555;
+        }
 
-# 4. 메인 화면 구성
-def main():
-    st.title("🔥 마케팅팀 _ Smart Marketing Hub")
-    
-    df = load_data()
+        /* 별점 영역 */
+        .star-rating {
+            flex: 0.5;
+            text-align: center;
+            font-size: 14px;
+            letter-spacing: 2px;
+            color: #333;
+        }
 
-    if df is None:
-        st.error("❌ 'marketing_hub.xlsx' 파일을 찾을 수 없습니다!")
-        return
+        /* 링크 버튼 영역 */
+        .link-area {
+            flex: 0.5;
+            text-align: right;
+        }
+        .link-btn {
+            display: inline-block;
+            padding: 8px 30px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background-color: white;
+            text-decoration: none;
+            color: #555;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .link-btn:hover {
+            background-color: #f3f4f6;
+        }
+        
+        /* 유틸리티 */
+        .folder-icon {
+            color: #fbbf24; /* 노란색 폴더 아이콘 */
+        }
+    </style>
+</head>
+<body>
 
-    try:
-        # 그룹핑은 하되, 제목은 출력하지 않음
-        groups = df['구분'].unique()
+    <div class="container">
+        <h1>🔥 마케팅팀 _ Smart Marketing Hub</h1>
 
-        for i, group in enumerate(groups):
-            if pd.isna(group): continue
-            
-            # [핵심] 제목 출력 코드 삭제됨 (📂 Key Support 안 나옴)
-            
-            # 해당 그룹의 데이터 가져오기
-            group_df = df[df['구분'] == group]
+        <div class="section-header">
+            <span class="folder-icon">📂</span> Key Support
+        </div>
+        
+        <div class="divider-top"></div>
 
-            for idx, row in group_df.iterrows():
-                # 레이아웃: [내용(7) | 별점(1) | 버튼(2)]
-                c1, c2, c3 = st.columns([7, 1, 2])
-                
-                with c1:
-                    # 제목 : 설명
-                    title = row['내용']
-                    desc = f" : <span class='description-text'>{row['기능']}</span>" if pd.notna(row['기능']) else ""
-                    st.markdown(f"<div class='compact-text'><b>{title}</b>{desc}</div>", unsafe_allow_html=True)
-                
-                with c2:
-                    # 별점
-                    if pd.notna(row['활용도']):
-                        st.markdown(f"<div class='compact-text' style='text-align:center; font-size:14px;'>{row['활용도']}</div>", unsafe_allow_html=True)
-                
-                with c3:
-                    # 링크 버튼
-                    if pd.notna(row['링크']):
-                        st.link_button("Link 🔗", str(row['링크']), use_container_width=True)
-                
-                # 항목 간 얇은 구분선
-                st.markdown("<hr class='item-divider'>", unsafe_allow_html=True)
-            
-            # [핵심] 그룹이 끝날 때마다 넓은 간격(Gap) 추가 (마지막 그룹 제외)
-            if i < len(groups) - 1:
-                st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True) # 40px 만큼 띄우기
+        <div class="list-row">
+            <div class="content-area">
+                <span class="content-title">공동주택 지도 시각화 Dashboard :</span>
+                <span class="content-desc">공동주택, 지역난방 시각화, 판매량 비교 등</span>
+            </div>
+            <div class="star-rating">★★★★★</div>
+            <div class="link-area">
+                <a href="#" class="link-btn">Link 🔗</a>
+            </div>
+        </div>
 
-    except Exception as e:
-        st.error("오류가 발생했습니다.")
-        st.code(str(e))
+        <div class="list-row">
+            <div class="content-area">
+                <span class="content-title">판매량분석(full ver) :</span>
+                <span class="content-desc">고객명별, 상품별 전년동월대비 판매량분석</span>
+            </div>
+            <div class="star-rating">★★★★★</div>
+            <div class="link-area">
+                <a href="#" class="link-btn">Link 🔗</a>
+            </div>
+        </div>
 
-if __name__ == "__main__":
-    main()
+        <div class="list-row">
+            <div class="content-area">
+                <span class="content-title">판매량분석(simple ver) :</span>
+                <span class="content-desc">상품별, 산업용, 일반용(업종별, 고객별 분석 등)</span>
+            </div>
+            <div class="star-rating">★★★★</div>
+            <div class="link-area">
+                <a href="#" class="link-btn">Link 🔗</a>
+            </div>
+        </div>
+
+        <div class="list-row">
+            <div class="content-area">
+                <span class="content-title">일 공급량 실적관리 :</span>
+                <span class="content-desc">일일계획 및 실적관리, 랭킹관리, 실적관리, 기온 구간평 공급량 분석 등</span>
+            </div>
+            <div class="star-rating">★★★★★</div>
+            <div class="link-area">
+                <a href="#" class="link-btn">Link 🔗</a>
+            </div>
+        </div>
+
+        <div class="list-row">
+            <div class="content-area">
+                <span class="content-title">입주율 분석 Dashboard :</span>
+                <span class="content-desc">입주율 저조 단지, 계획대비 실적 분석 등</span>
+            </div>
+            <div class="star-rating">★★★</div>
+            <div class="link-area">
+                <a href="#" class="link-btn">Link 🔗</a>
+            </div>
+        </div>
+
+        <div class="list-row">
+            <div class="content-area">
+                <span class="content-title">뉴스 모니터링 (Client) :</span>
+                <span class="content-desc">대성에너지 주요 고객 뉴스 모니터링(중대재해 등)</span>
+            </div>
+            <div class="star-rating">★★★</div>
+            <div class="link-area">
+                <a href="#" class="link-btn">Link 🔗</a>
+            </div>
+        </div>
+
+        <div class="section-header" style="margin-top: 60px;">
+            <span class="folder-icon">📂</span> 모니터링(Monitoring)
+        </div>
+        <div class="divider-top"></div>
+
+    </div>
+
+</body>
+</html>
