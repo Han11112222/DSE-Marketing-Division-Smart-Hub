@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from streamlit_gsheets import GSheetsConnection
 
 # 1. 페이지 설정
 st.set_page_config(
@@ -34,31 +33,31 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 3. 데이터 로드 함수
-@st.cache_data(ttl=60)
+# 3. 데이터 로드 함수 (엑셀 파일 읽기)
+@st.cache_data
 def load_data():
-    conn = st.connection("gsheets", type=GSheetsConnection)
+    # ★중요: 깃허브에 올린 엑셀 파일 이름이 'marketing_hub.xlsx' 라고 가정했습니다.
+    # 만약 이름이 다르면 아래 "marketing_hub.xlsx" 부분을 형님 파일명으로 고쳐주세요!
+    # header=5는 엑셀의 6번째 줄(구분, 내용...)부터 읽으라는 뜻입니다.
+    df = pd.read_excel("marketing_hub.xlsx", header=5)
     
-    # [cite_start][수정 완료] 형님이 주신 정확한 주소입니다! [cite: 1]
-    sheet_url = "https://docs.google.com/spreadsheets/d/1wXoZ5kOL-4C6hWOZv-uy5UTE-RVCTiKIumnQGLHM4gg/edit"
+    # 엑셀 '셀 병합' 처리: 비어있는 '구분' 컬럼을 위 내용으로 채우기
+    df['구분'] = df['구분'].ffill()
     
-    # ★중요★: 구글 시트 하단 탭 이름을 꼭 'App_DB'로 만드셔야 합니다.
-    df = conn.read(spreadsheet=sheet_url, worksheet="App_DB") 
-    
-    # 데이터 정리
+    # 데이터 정리 (링크 없는 행 제거)
     df = df.dropna(subset=['링크', '내용'])
     return df
 
 # 4. 메인 화면 구성
 def main():
     st.title("🔥 대성에너지(주) 마케팅팀 Smart Hub")
-    st.caption("🚀 Data-Driven Marketing Portal")
+    st.caption("🚀 Data-Driven Marketing Portal (Excel Ver.)")
     st.divider()
 
     try:
         df = load_data()
         
-        # 엑셀 데이터 순서대로 그룹핑
+        # 엑셀 순서대로 그룹핑
         groups = df['구분'].unique()
 
         for group in groups:
@@ -71,17 +70,19 @@ def main():
             for idx, row in group_df.iterrows():
                 col = cols[idx % 3]
                 with col:
-                    st.link_button(
-                        label=f"🔗 {row['내용']}", 
-                        url=row['링크'],
-                        help=f"📌 기능: {row['기능']}\n⭐ 활용도: {row['활용도']}",
-                        use_container_width=True
-                    )
+                    # 링크가 있는지 한 번 더 확인
+                    if pd.notna(row['링크']):
+                        st.link_button(
+                            label=f"🔗 {row['내용']}", 
+                            url=row['링크'],
+                            help=f"📌 기능: {row['기능']}\n⭐ 활용도: {row['활용도']}",
+                            use_container_width=True
+                        )
             st.markdown("<br>", unsafe_allow_html=True)
 
     except Exception as e:
-        st.error("데이터를 불러오지 못했습니다.")
-        st.info("💡 확인해주세요: 구글 시트 하단 탭(시트) 이름이 'App_DB'가 맞나요?")
+        st.error("엑셀 파일을 불러오지 못했습니다.")
+        st.warning("혹시 깃허브에 올린 파일 이름이 'marketing_hub.xlsx'가 맞는지 확인해주세요!")
         st.code(str(e))
 
 if __name__ == "__main__":
