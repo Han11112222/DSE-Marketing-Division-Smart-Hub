@@ -24,7 +24,6 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      # ✅ GTK 라이브러리 설치 (에러 수정)
       - name: Install GTK dependencies
         run: |
           sudo apt-get update
@@ -42,9 +41,10 @@ jobs:
       - name: Install Flet
         run: pip install flet==0.24.1
 
+      # ✅ [수정] mobile_app.py → . 으로 변경 (flet build는 폴더 경로를 받아야 함)
       - name: Build APK
         run: |
-          flet build apk mobile_app.py \
+          flet build apk . \
             --project "SmartMarketingHub" \
             --org "com.marketing.hub" \
             --build-version "1.0.0" \
