@@ -41,15 +41,18 @@ jobs:
       - name: Install Flet
         run: pip install flet==0.24.1
 
-      # ✅ 핵심 수정: --exclude-packages 로 numpy/pandas 제외
+      # ✅ 핵심 수정: Flet 빌드 전에 requirements.txt를 완전히 비워서
+      # numpy/pandas 등 모바일 빌드 불가 패키지 설치 차단
+      - name: Clear requirements for mobile build
+        run: echo "" > requirements.txt
+
       - name: Build APK
         run: |
           flet build apk . \
             --project "SmartMarketingHub" \
             --org "com.marketing.hub" \
             --build-version "1.0.0" \
-            --build-number 1 \
-            --exclude-packages numpy,pandas,streamlit,openpyxl,certifi
+            --build-number 1
 
       - name: Find APK
         run: find . -name "*.apk" -type f
