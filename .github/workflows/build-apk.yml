@@ -41,10 +41,9 @@ jobs:
       - name: Install Flet
         run: pip install flet==0.24.1
 
-      # ✅ 핵심 수정: Flet 빌드 전에 requirements.txt를 완전히 비워서
-      # numpy/pandas 등 모바일 빌드 불가 패키지 설치 차단
-      - name: Clear requirements for mobile build
-        run: echo "" > requirements.txt
+      # ✅ 핵심 수정: requirements.txt를 완전히 삭제 (빈 파일도 에러 유발)
+      - name: Remove requirements for mobile build
+        run: rm -f requirements.txt
 
       - name: Build APK
         run: |
