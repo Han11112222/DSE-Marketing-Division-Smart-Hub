@@ -38,10 +38,10 @@ jobs:
           flutter-version: "3.24.0"
           channel: "stable"
 
+      # ✅ flet 버전을 0.24.1 → 0.25.2 로 업그레이드 (wakelock_plus 호환 문제 해결)
       - name: Install Flet
-        run: pip install flet==0.24.1
+        run: pip install flet==0.25.2
 
-      # ✅ 핵심 수정: requirements.txt를 완전히 삭제 (빈 파일도 에러 유발)
       - name: Remove requirements for mobile build
         run: rm -f requirements.txt
 
