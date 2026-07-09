@@ -17,7 +17,6 @@ TRASH = {"상세분류", "구분", "내용", "기능", "활용도", "Main 활용
 
 
 def get_data():
-    """구글 스프레드시트 CSV를 읽어 [{컬럼:값, ...}, ...] 리스트로 반환"""
     backup = [{"구분": "Key Support", "내용": "샘플 데이터", "기능": "스프레드시트 연결 필요", "활용도": "3", "링크": "#"}]
     try:
         ctx = ssl.create_default_context()
@@ -26,7 +25,6 @@ def get_data():
         req = urllib.request.urlopen(SHEET_URL, context=ctx, timeout=10)
         raw = req.read().decode("utf-8").splitlines()
 
-        # 헤더 행 찾기
         header_idx = -1
         for i, line in enumerate(raw):
             if "구분" in line and "내용" in line:
@@ -42,21 +40,15 @@ def get_data():
         last_category = ""
 
         for row in reader:
-            # 공백 제거
             row = {k.strip(): (v.strip() if v else "") for k, v in row.items()}
-
-            # 불필요한 행 제거
             if row.get("내용", "") in TRASH or row.get("내용", "") == "":
                 continue
             if row.get("구분", "") in TRASH:
                 continue
-
-            # 구분 ffill (빈 값이면 이전 값 사용)
             if row.get("구분", "") == "":
                 row["구분"] = last_category
             else:
                 last_category = row["구분"]
-
             rows.append(row)
 
         return rows if rows else backup, None
@@ -92,7 +84,6 @@ def main(page: ft.Page):
         content_col.controls.clear()
         rows, err = get_data()
 
-        # 타이틀
         content_col.controls.append(
             ft.Container(
                 content=ft.Text(
@@ -120,7 +111,6 @@ def main(page: ft.Page):
             page.update()
             return
 
-        # 카테고리별 그룹핑
         categories = []
         cat_map = {}
         for row in rows:
@@ -134,7 +124,6 @@ def main(page: ft.Page):
             if not category or category.strip() == "":
                 continue
 
-            # 섹션 헤더
             content_col.controls.append(
                 ft.Container(
                     content=ft.Row([
@@ -144,12 +133,9 @@ def main(page: ft.Page):
                     padding=ft.padding.only(left=16, top=24, bottom=6, right=16),
                 )
             )
-            # 구분선
             content_col.controls.append(
                 ft.Divider(height=1, color=PRIMARY_COLOR, thickness=2)
             )
-
-            # 컬럼 헤더
             content_col.controls.append(
                 ft.Container(
                     content=ft.Row([
@@ -163,7 +149,6 @@ def main(page: ft.Page):
                 )
             )
 
-            # 데이터 행
             for row in cat_map[category]:
                 title = row.get("내용", "").strip()
                 if not title or title in TRASH:
