@@ -1,7 +1,8 @@
 import flet as ft
-import pandas as pd
 import urllib.request
 import ssl
+import csv
+from io import StringIO
 
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1gbjNJoejLzd1UOzg5_2wCt0GnHpJNjju7W8RyKN56ZY/export?format=csv&gid=0"
 
@@ -12,9 +13,12 @@ DIVIDER_COLOR = "#e5e7eb"
 TEXT_COLOR = "#333333"
 DESC_COLOR = "#555555"
 
+TRASH = {"상세분류", "구분", "내용", "기능", "활용도", "Main 활용"}
+
 
 def get_data():
-    backup = [{"구분": "Key Support", "내용": "샘플 데이터", "기능": "스프레드시트 연결 필요", "활용도": 3, "링크": "#"}]
+    """구글 스프레드시트 CSV를 읽어 [{컬럼:값, ...}, ...] 리스트로 반환"""
+    backup = [{"구분": "Key Support", "내용": "샘플 데이터", "기능": "스프레드시트 연결 필요", "활용도": "3", "링크": "#"}]
     try:
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
@@ -22,6 +26,7 @@ def get_data():
         req = urllib.request.urlopen(SHEET_URL, context=ctx, timeout=10)
         raw = req.read().decode("utf-8").splitlines()
 
+        # 헤더 행 찾기
         header_idx = -1
         for i, line in enumerate(raw):
             if "구분" in line and "내용" in line:
@@ -29,24 +34,35 @@ def get_data():
                 break
 
         if header_idx == -1:
-            return pd.DataFrame(backup), "⚠️ 헤더를 찾을 수 없습니다."
+            return backup, "⚠️ 헤더를 찾을 수 없습니다."
 
-        from io import StringIO
         content = "\n".join(raw[header_idx:])
-        df = pd.read_csv(StringIO(content))
-        df = df.fillna("")
+        reader = csv.DictReader(StringIO(content))
+        rows = []
+        last_category = ""
 
-        trash = ["상세분류", "구분", "내용", "기능", "활용도", "Main 활용"]
-        if "내용" in df.columns:
-            df = df[~df["내용"].isin(trash)]
-            df = df[df["내용"] != ""]
-        if "구분" in df.columns:
-            df = df[~df["구분"].isin(trash)]
-            df["구분"] = df["구분"].replace("", pd.NA).ffill()
+        for row in reader:
+            # 공백 제거
+            row = {k.strip(): (v.strip() if v else "") for k, v in row.items()}
 
-        return df, None
+            # 불필요한 행 제거
+            if row.get("내용", "") in TRASH or row.get("내용", "") == "":
+                continue
+            if row.get("구분", "") in TRASH:
+                continue
+
+            # 구분 ffill (빈 값이면 이전 값 사용)
+            if row.get("구분", "") == "":
+                row["구분"] = last_category
+            else:
+                last_category = row["구분"]
+
+            rows.append(row)
+
+        return rows if rows else backup, None
+
     except Exception as e:
-        return pd.DataFrame(backup), f"⚠️ 에러: {e}"
+        return backup, f"⚠️ 에러: {e}"
 
 
 def make_stars(val):
@@ -54,6 +70,7 @@ def make_stars(val):
         if isinstance(val, str) and "★" in val:
             return val
         n = int(float(val)) if val else 0
+        n = max(0, min(5, n))
         return "★" * n + "☆" * (5 - n)
     except:
         return "☆☆☆☆☆"
@@ -64,14 +81,16 @@ def main(page: ft.Page):
     page.bgcolor = "#ffffff"
     page.padding = 0
     page.scroll = ft.ScrollMode.AUTO
-    page.fonts = {"NotoSans": "https://fonts.gstatic.com/s/notosanskr/v36/PbykFmXiEBPT4ITbgNA5Cgm20xz64px_1hVWr0wuPNGmlQNMEfD4.woff2"}
+    page.fonts = {
+        "NotoSans": "https://fonts.gstatic.com/s/notosanskr/v36/PbykFmXiEBPT4ITbgNA5Cgm20xz64px_1hVWr0wuPNGmlQNMEfD4.woff2"
+    }
     page.theme = ft.Theme(font_family="NotoSans")
 
     content_col = ft.Column(scroll=ft.ScrollMode.AUTO, spacing=0, expand=True)
 
     def build_ui(e=None):
         content_col.controls.clear()
-        df, err = get_data()
+        rows, err = get_data()
 
         # 타이틀
         content_col.controls.append(
@@ -96,22 +115,23 @@ def main(page: ft.Page):
                 )
             )
 
-        if df.empty:
+        if not rows:
             content_col.controls.append(ft.Text("데이터 없음", color=DESC_COLOR, size=14))
             page.update()
             return
 
-        df.columns = [c.strip() if isinstance(c, str) else c for c in df.columns]
-
-        if "구분" not in df.columns:
-            content_col.controls.append(ft.Text("'구분' 컬럼을 찾을 수 없습니다.", color="red"))
-            page.update()
-            return
-
-        categories = df["구분"].dropna().unique()
+        # 카테고리별 그룹핑
+        categories = []
+        cat_map = {}
+        for row in rows:
+            cat = row.get("구분", "기타")
+            if cat not in cat_map:
+                cat_map[cat] = []
+                categories.append(cat)
+            cat_map[cat].append(row)
 
         for category in categories:
-            if not category or str(category).strip() == "":
+            if not category or category.strip() == "":
                 continue
 
             # 섹션 헤더
@@ -144,15 +164,14 @@ def main(page: ft.Page):
             )
 
             # 데이터 행
-            section_df = df[df["구분"] == category]
-            for _, row in section_df.iterrows():
-                title = str(row.get("내용", "")).strip()
-                if not title or title in ["상세분류", "구분"]:
+            for row in cat_map[category]:
+                title = row.get("내용", "").strip()
+                if not title or title in TRASH:
                     continue
 
-                desc = str(row.get("기능", "")).strip()
-                stars = make_stars(row.get("활용도", 0))
-                link = str(row.get("링크", "#")).strip()
+                desc = row.get("기능", "").strip()
+                stars = make_stars(row.get("활용도", "0"))
+                link = row.get("링크", "#").strip()
 
                 def open_link(e, url=link):
                     if url and url != "#":
