@@ -1,0 +1,5 @@
+[tool.flet]
+app_name = "SmartMarketingHub"
+org = "com.marketing.hub"
+
+[tool.flet.dependencies]
