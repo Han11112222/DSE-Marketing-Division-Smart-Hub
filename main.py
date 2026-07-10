@@ -73,10 +73,9 @@ def main(page: ft.Page):
     page.bgcolor = "#ffffff"
     page.padding = 0
     page.scroll = ft.ScrollMode.AUTO
-    page.fonts = {
-        "NotoSans": "https://fonts.gstatic.com/s/notosanskr/v36/PbykFmXiEBPT4ITbgNA5Cgm20xz64px_1hVWr0wuPNGmlQNMEfD4.woff2"
-    }
-    page.theme = ft.Theme(font_family="NotoSans")
+    # ✅ [수정] 온라인 폰트 제거 — 네트워크 에러로 앱 크래시 발생
+    # page.fonts = {"NotoSans": "https://..."}
+    # page.theme = ft.Theme(font_family="NotoSans")
 
     content_col = ft.Column(scroll=ft.ScrollMode.AUTO, spacing=0, expand=True)
 
@@ -159,8 +158,11 @@ def main(page: ft.Page):
                 link = row.get("링크", "#").strip()
 
                 def open_link(e, url=link):
-                    if url and url != "#":
-                        page.launch_url(url)
+                    try:
+                        if url and url != "#":
+                            page.launch_url(url)
+                    except Exception:
+                        pass
 
                 content_col.controls.append(
                     ft.Container(
