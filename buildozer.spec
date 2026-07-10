@@ -11,9 +11,11 @@ android.permissions = INTERNET
 android.api = 33
 android.minapi = 21
 android.ndk = 25b
+android.ndk_api = 21
+android.sdk = 33
 android.archs = arm64-v8a
+android.accept_sdk_license = True
 fullscreen = 0
-android.allow_backup = True
 
 [buildozer]
 log_level = 2
