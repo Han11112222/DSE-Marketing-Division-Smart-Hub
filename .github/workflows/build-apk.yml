@@ -35,9 +35,6 @@ jobs:
             libavformat-dev \
             libavcodec-dev \
             zlib1g-dev \
-            libgstreamer1.0-dev \
-            gstreamer1.0-plugins-base \
-            gstreamer1.0-plugins-good \
             autoconf \
             libtool \
             pkg-config \
@@ -48,10 +45,6 @@ jobs:
       - name: Install buildozer
         run: |
           pip install buildozer cython==0.29.33
-
-      - name: Set up Android SDK/NDK
-        run: |
-          buildozer android debug 2>&1 | head -5 || true
 
       - name: Build APK
         run: |
