@@ -35,12 +35,12 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.24.0"
+          flutter-version: "3.22.0"
           channel: "stable"
 
-      # ✅ flet 버전을 0.24.1 → 0.25.2 로 업그레이드 (wakelock_plus 호환 문제 해결)
+      # ✅ flet 0.23.2 — Python 3.11 기반으로 안정적인 버전
       - name: Install Flet
-        run: pip install flet==0.25.2
+        run: pip install flet==0.23.2
 
       - name: Remove requirements for mobile build
         run: rm -f requirements.txt
