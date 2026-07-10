@@ -16,6 +16,13 @@ DESC_COLOR = "#555555"
 TRASH = {"상세분류", "구분", "내용", "기능", "활용도", "Main 활용"}
 
 
+def safe_str(val):
+    """None 또는 어떤 값이든 안전하게 문자열로 변환"""
+    if val is None:
+        return ""
+    return str(val).strip()
+
+
 def get_data():
     backup = [{"구분": "Key Support", "내용": "샘플 데이터", "기능": "스프레드시트 연결 필요", "활용도": "3", "링크": "#"}]
     try:
@@ -40,7 +47,8 @@ def get_data():
         last_category = ""
 
         for row in reader:
-            row = {k.strip(): (v.strip() if v else "") for k, v in row.items()}
+            # ✅ 모든 값을 안전하게 문자열로 변환
+            row = {safe_str(k): safe_str(v) for k, v in row.items() if k is not None}
             if row.get("내용", "") in TRASH or row.get("내용", "") == "":
                 continue
             if row.get("구분", "") in TRASH:
@@ -54,12 +62,13 @@ def get_data():
         return rows if rows else backup, None
 
     except Exception as e:
-        return backup, f"⚠️ 에러: {e}"
+        return backup, f"⚠️ 에러: {safe_str(e)}"
 
 
 def make_stars(val):
     try:
-        if isinstance(val, str) and "★" in val:
+        val = safe_str(val)
+        if "★" in val:
             return val
         n = int(float(val)) if val else 0
         n = max(0, min(5, n))
@@ -73,15 +82,17 @@ def main(page: ft.Page):
     page.bgcolor = "#ffffff"
     page.padding = 0
     page.scroll = ft.ScrollMode.AUTO
-    # ✅ [수정] 온라인 폰트 제거 — 네트워크 에러로 앱 크래시 발생
-    # page.fonts = {"NotoSans": "https://..."}
-    # page.theme = ft.Theme(font_family="NotoSans")
 
     content_col = ft.Column(scroll=ft.ScrollMode.AUTO, spacing=0, expand=True)
 
     def build_ui(e=None):
         content_col.controls.clear()
-        rows, err = get_data()
+
+        try:
+            rows, err = get_data()
+        except Exception as ex:
+            rows = []
+            err = f"⚠️ 데이터 로드 실패: {safe_str(ex)}"
 
         content_col.controls.append(
             ft.Container(
@@ -96,7 +107,7 @@ def main(page: ft.Page):
         if err:
             content_col.controls.append(
                 ft.Container(
-                    content=ft.Text(err, size=13, color="#856404"),
+                    content=ft.Text(safe_str(err), size=13, color="#856404"),
                     bgcolor="#fff3cd",
                     border=ft.border.all(1, "#ffeeba"),
                     border_radius=6,
@@ -113,7 +124,7 @@ def main(page: ft.Page):
         categories = []
         cat_map = {}
         for row in rows:
-            cat = row.get("구분", "기타")
+            cat = safe_str(row.get("구분", "기타")) or "기타"
             if cat not in cat_map:
                 cat_map[cat] = []
                 categories.append(cat)
@@ -127,7 +138,7 @@ def main(page: ft.Page):
                 ft.Container(
                     content=ft.Row([
                         ft.Text("📂", size=16),
-                        ft.Text(str(category), size=16, weight=ft.FontWeight.W_700, color=PRIMARY_COLOR),
+                        ft.Text(safe_str(category), size=16, weight=ft.FontWeight.W_700, color=PRIMARY_COLOR),
                     ]),
                     padding=ft.padding.only(left=16, top=24, bottom=6, right=16),
                 )
@@ -149,56 +160,59 @@ def main(page: ft.Page):
             )
 
             for row in cat_map[category]:
-                title = row.get("내용", "").strip()
-                if not title or title in TRASH:
-                    continue
+                try:
+                    title = safe_str(row.get("내용", ""))
+                    if not title or title in TRASH:
+                        continue
 
-                desc = row.get("기능", "").strip()
-                stars = make_stars(row.get("활용도", "0"))
-                link = row.get("링크", "#").strip()
+                    desc = safe_str(row.get("기능", ""))
+                    stars = make_stars(row.get("활용도", "0"))
+                    link = safe_str(row.get("링크", "#")) or "#"
 
-                def open_link(e, url=link):
-                    try:
-                        if url and url != "#":
-                            page.launch_url(url)
-                    except Exception:
-                        pass
+                    def open_link(e, url=link):
+                        try:
+                            if url and url != "#":
+                                page.launch_url(url)
+                        except Exception:
+                            pass
 
-                content_col.controls.append(
-                    ft.Container(
-                        content=ft.Row(
-                            [
-                                ft.Column(
-                                    [
-                                        ft.Text(title, size=14, weight=ft.FontWeight.W_700, color=TEXT_COLOR),
-                                        ft.Text(desc, size=12, color=DESC_COLOR) if desc else ft.Container(),
-                                    ],
-                                    spacing=2,
-                                    expand=3,
-                                ),
-                                ft.Text(stars, size=12, color=STAR_COLOR, width=70, text_align=ft.TextAlign.CENTER),
-                                ft.Container(
-                                    content=ft.ElevatedButton(
-                                        "Link 🔗",
-                                        on_click=open_link,
-                                        style=ft.ButtonStyle(
-                                            bgcolor=ft.colors.WHITE,
-                                            color=DESC_COLOR,
-                                            side=ft.BorderSide(1, DIVIDER_COLOR),
-                                            shape=ft.RoundedRectangleBorder(radius=6),
-                                            padding=ft.padding.symmetric(horizontal=8, vertical=4),
-                                        ),
+                    content_col.controls.append(
+                        ft.Container(
+                            content=ft.Row(
+                                [
+                                    ft.Column(
+                                        [
+                                            ft.Text(title, size=14, weight=ft.FontWeight.W_700, color=TEXT_COLOR),
+                                            ft.Text(desc, size=12, color=DESC_COLOR) if desc else ft.Container(),
+                                        ],
+                                        spacing=2,
+                                        expand=3,
                                     ),
-                                    width=70,
-                                    alignment=ft.alignment.center,
-                                ),
-                            ],
-                            vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                        ),
-                        padding=ft.padding.symmetric(horizontal=16, vertical=12),
-                        border=ft.border.only(bottom=ft.BorderSide(1, DIVIDER_COLOR)),
+                                    ft.Text(stars, size=12, color=STAR_COLOR, width=70, text_align=ft.TextAlign.CENTER),
+                                    ft.Container(
+                                        content=ft.ElevatedButton(
+                                            "Link 🔗",
+                                            on_click=open_link,
+                                            style=ft.ButtonStyle(
+                                                bgcolor=ft.colors.WHITE,
+                                                color=DESC_COLOR,
+                                                side=ft.BorderSide(1, DIVIDER_COLOR),
+                                                shape=ft.RoundedRectangleBorder(radius=6),
+                                                padding=ft.padding.symmetric(horizontal=8, vertical=4),
+                                            ),
+                                        ),
+                                        width=70,
+                                        alignment=ft.alignment.center,
+                                    ),
+                                ],
+                                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                            ),
+                            padding=ft.padding.symmetric(horizontal=16, vertical=12),
+                            border=ft.border.only(bottom=ft.BorderSide(1, DIVIDER_COLOR)),
+                        )
                     )
-                )
+                except Exception:
+                    continue
 
             content_col.controls.append(ft.Container(height=20))
 
