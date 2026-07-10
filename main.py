@@ -2,6 +2,7 @@ import flet as ft
 import urllib.request
 import ssl
 import csv
+import threading
 from io import StringIO
 
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1gbjNJoejLzd1UOzg5_2wCt0GnHpJNjju7W8RyKN56ZY/export?format=csv&gid=0"
@@ -15,21 +16,23 @@ DESC_COLOR = "#555555"
 
 TRASH = {"상세분류", "구분", "내용", "기능", "활용도", "Main 활용"}
 
+BACKUP_DATA = [
+    {"구분": "샘플", "내용": "데이터 로딩 중...", "기능": "잠시만 기다려주세요", "활용도": "3", "링크": "#"},
+]
+
 
 def safe_str(val):
-    """None 또는 어떤 값이든 안전하게 문자열로 변환"""
     if val is None:
         return ""
     return str(val).strip()
 
 
 def get_data():
-    backup = [{"구분": "Key Support", "내용": "샘플 데이터", "기능": "스프레드시트 연결 필요", "활용도": "3", "링크": "#"}]
     try:
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
-        req = urllib.request.urlopen(SHEET_URL, context=ctx, timeout=10)
+        req = urllib.request.urlopen(SHEET_URL, context=ctx, timeout=15)
         raw = req.read().decode("utf-8").splitlines()
 
         header_idx = -1
@@ -39,7 +42,7 @@ def get_data():
                 break
 
         if header_idx == -1:
-            return backup, "⚠️ 헤더를 찾을 수 없습니다."
+            return BACKUP_DATA, "⚠️ 헤더를 찾을 수 없습니다."
 
         content = "\n".join(raw[header_idx:])
         reader = csv.DictReader(StringIO(content))
@@ -47,7 +50,6 @@ def get_data():
         last_category = ""
 
         for row in reader:
-            # ✅ 모든 값을 안전하게 문자열로 변환
             row = {safe_str(k): safe_str(v) for k, v in row.items() if k is not None}
             if row.get("내용", "") in TRASH or row.get("내용", "") == "":
                 continue
@@ -59,10 +61,10 @@ def get_data():
                 last_category = row["구분"]
             rows.append(row)
 
-        return rows if rows else backup, None
+        return rows if rows else BACKUP_DATA, None
 
     except Exception as e:
-        return backup, f"⚠️ 에러: {safe_str(e)}"
+        return BACKUP_DATA, f"⚠️ 데이터 로드 실패: {safe_str(e)}"
 
 
 def make_stars(val):
@@ -83,16 +85,26 @@ def main(page: ft.Page):
     page.padding = 0
     page.scroll = ft.ScrollMode.AUTO
 
-    content_col = ft.Column(scroll=ft.ScrollMode.AUTO, spacing=0, expand=True)
+    # 로딩 표시
+    loading = ft.Container(
+        content=ft.Column(
+            [
+                ft.ProgressRing(color=PRIMARY_COLOR),
+                ft.Text("데이터 불러오는 중...", size=14, color=DESC_COLOR),
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=16,
+        ),
+        alignment=ft.alignment.center,
+        expand=True,
+        padding=50,
+    )
 
-    def build_ui(e=None):
+    content_col = ft.Column(scroll=ft.ScrollMode.AUTO, spacing=0, expand=True, visible=False)
+
+    def render_rows(rows, err):
         content_col.controls.clear()
-
-        try:
-            rows, err = get_data()
-        except Exception as ex:
-            rows = []
-            err = f"⚠️ 데이터 로드 실패: {safe_str(ex)}"
 
         content_col.controls.append(
             ft.Container(
@@ -118,7 +130,6 @@ def main(page: ft.Page):
 
         if not rows:
             content_col.controls.append(ft.Text("데이터 없음", color=DESC_COLOR, size=14))
-            page.update()
             return
 
         categories = []
@@ -131,7 +142,7 @@ def main(page: ft.Page):
             cat_map[cat].append(row)
 
         for category in categories:
-            if not category or category.strip() == "":
+            if not category.strip():
                 continue
 
             content_col.controls.append(
@@ -164,7 +175,6 @@ def main(page: ft.Page):
                     title = safe_str(row.get("내용", ""))
                     if not title or title in TRASH:
                         continue
-
                     desc = safe_str(row.get("기능", ""))
                     stars = make_stars(row.get("활용도", "0"))
                     link = safe_str(row.get("링크", "#")) or "#"
@@ -216,12 +226,28 @@ def main(page: ft.Page):
 
             content_col.controls.append(ft.Container(height=20))
 
+    def load_data_thread(e=None):
+        # 로딩 표시
+        loading.visible = True
+        content_col.visible = False
         page.update()
+
+        # 별도 스레드에서 데이터 로드
+        def _load():
+            rows, err = get_data()
+            render_rows(rows, err)
+            loading.visible = False
+            content_col.visible = True
+            page.update()
+
+        t = threading.Thread(target=_load)
+        t.daemon = True
+        t.start()
 
     refresh_btn = ft.IconButton(
         icon=ft.icons.REFRESH,
         tooltip="새로고침",
-        on_click=build_ui,
+        on_click=load_data_thread,
         icon_color="white",
     )
 
@@ -231,8 +257,8 @@ def main(page: ft.Page):
         actions=[refresh_btn],
     )
 
-    page.add(content_col)
-    build_ui()
+    page.add(loading, content_col)
+    load_data_thread()
 
 
 ft.app(target=main)
